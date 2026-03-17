@@ -1,18 +1,20 @@
-from abc import ABC, abstractmethod
+import logging
+from converters.interfaces import RateSource
 
-class CurrencyConverter(ABC):
-    @abstractmethod
-    def convert_usd_to_eur(self, amount):
-        pass
+class CurrencyConverter:
+    def __init__(self, rate_service: RateSource, logger=None):
+        self.rate_service = rate_service
+        self.logger = logger or logging.getLogger(__name__)
 
-    @abstractmethod
-    def convert_usd_to_gbp(self, amount):
-        pass
+    def convert(self, amount: float, target_currency: str) -> float:
+        if amount < 0:
+            raise ValueError("Amount cannot be negative.")
 
-    @abstractmethod
-    def convert_usd_to_rub(self, amount):
-        pass
+        rates = self.rate_service.get_rates()
 
-    @abstractmethod
-    def convert_usd_to_cny(self, amount):
-        pass
+        if target_currency not in rates:
+            raise ValueError(f"Currency {target_currency} not found.")
+
+        result = amount * rates[target_currency]
+        self.logger.info(f"Converted {amount} USD to {target_currency}: {result}")
+        return result

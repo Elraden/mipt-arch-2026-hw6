@@ -1,20 +1,56 @@
-import asyncio
-from converters import *
+from logger import build_logger
+from config import (
+    API_URL,
+    CACHE_FILE,
+    CACHE_EXPIRY,
+    SUPPORTED_CURRENCIES,
+    API_TIMEOUT,
+    API_MAX_RETRIES,
+    API_RETRY_DELAY,
+)
+from converters.api import ExchangeRateApi
+from converters.cache import FileRateCache
+from converters.currency_converter import CurrencyConverter
+from converters.rate_service import RateService
 
-def main():    
-    amount = int(input('Введите значение в USD: \n'))
-    
-    converter = UsdRubConverter()
-    print(f"{amount} USD to RUB: {converter.convert_usd_to_rub(amount)}")
-    
-    converter = UsdEurConverter()
-    print(f"{amount} USD to EUR: {converter.convert_usd_to_eur(amount)}")
-    
-    converter = UsdGbpConverter()
-    print(f"{amount} USD to GBP: {converter.convert_usd_to_gbp(amount)}")
-    
-    converter = UsdCnyConverter()
-    print(f"{amount} USD to CNY: {converter.convert_usd_to_cny(amount)}")
+def main():
+    logger = build_logger()
+
+    api_client = ExchangeRateApi(
+        api_url=API_URL,
+        timeout=API_TIMEOUT,
+        max_retries=API_MAX_RETRIES,
+        retry_delay=API_RETRY_DELAY,
+        logger=logger,
+    )
+
+    cache = FileRateCache(
+        cache_file=CACHE_FILE,
+        cache_expiry=CACHE_EXPIRY,
+    )
+
+    rate_service = RateService(
+        api_client=api_client,
+        cache=cache,
+        logger=logger,
+    )
+
+    converter = CurrencyConverter(rate_service, logger)
+
+    try:
+        amount = float(input("Enter amount in USD:"))
+
+        for currency in SUPPORTED_CURRENCIES:
+            result = converter.convert(amount, currency)
+            print(f"{amount} USD to {currency}: {result:.2f}")
+
+    except ValueError as error:
+        logger.error(error)
+        print(error)
+
+    except RuntimeError as error:
+        logger.error(error)
+        print(error)
 
 if __name__ == "__main__":
     main()
